@@ -9,10 +9,28 @@ bu_pm_file = f"{bilara_data_path}/translation/en/brahmali/vinaya/pli-tv-bu-pm_tr
 bi_pm_vb_segments_file = "pm-to-vb-bi.csv"
 bu_pm_vb_segments_file = "pm-to-vb-bu.csv"
 
+def isSegmentId(text):
+    """
+    Given a string, returns True if the string is a valid SC segment ID.
+    """
+    return True
+
 def make_segment_id_dict(csv_file):
+    """
+    Create a dictionary of pm segment IDs to vb segment IDs.
+    """
     lookup = {}
     f = open(file=csv_file)
     return lookup
+
+def get_segment_text(segment_id):
+    """
+    Return the translation text given a segment ID.  For vb segment IDs only.
+
+    Raises ValueError if segment ID is invalid.
+    Raises RuntimeError if segment cannot be found.
+    """
+    return "foobar"
 
 def check_same_text(pm_file):
     """
