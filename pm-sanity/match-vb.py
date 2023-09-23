@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import difflib
 import os
 import subprocess
 
 ## Set up directories and filenames.
 CWD = os.getcwd()
 VINAYA_PATH = "/Users/tracy/Development/bilara-data/translation/en/brahmali/vinaya"
+VERBOSE = False
 
 bi_pm_file = f"{VINAYA_PATH}/pli-tv-bi-pm_translation-en-brahmali.json"
 bu_pm_file = f"{VINAYA_PATH}/pli-tv-bu-pm_translation-en-brahmali.json"
@@ -34,6 +36,16 @@ def make_segment_id_dict(csv_file):
     f = open(file=csv_file)
     return lookup
 
+def get_translation_text(segment_ref):
+    if "," in segment_ref:
+        text = '"'
+        for sid in segment_ref.strip('"').split(","):
+            text += get_segment_text(f'"{sid}"').strip('"')
+        text += '"'
+    else:
+        text = get_segment_text(segment_ref)
+    return text
+
 def get_segment_text(segment_id):
     """
     Return the translation text given a segment ID.
@@ -41,9 +53,15 @@ def get_segment_text(segment_id):
     os.chdir(VINAYA_PATH)
     output = subprocess.run(["ag", f'{segment_id}:', "--nofilename"], stdout=subprocess.PIPE).stdout.decode("utf-8").strip()
     os.chdir(CWD)
-    # TODO decide whether to leave segment id bit in or not
-    # yeah...we need to get just the text, START HERE
-    return output
+
+    # The line should be something like
+    #   "seg_id": "text ",
+    # We just want the text bit.
+    if output:
+        text = output.split(": ", 1)[1].rstrip(",")
+    else:
+        text = ""
+    return text
 
 def check_same_text(pm_file):
     """
@@ -71,7 +89,19 @@ def check_line(line):
     print(f"{segment_id}...{segment_text}")
 
 
-
+# ohhhh the bad programming...!
+bu_classes = [
+    ("Expulsion", 4),
+    ("Suspension", 13),
+    ("Undetermined", 2),
+    ("Relinquishment With Confession", 30),
+    ("Confession", 92),
+    ("Acknowledgement", 4),
+    ("Training", 75),
+    ("Settling Legal Issues", 7)
+    ]
+class_index = 0
+rule_number = 1
 
 def compare(key_file):
     """
@@ -80,31 +110,58 @@ def compare(key_file):
     """
     with open(key_file) as csv_file:
         for line in csv_file:
-            [pm_sid, vb_sid] = line.strip().split(",")
-            # Get the text for the pm entry.
-            # Sometimes the entry in the csv file is a range of segments rather
-            # than a single segment ID.  If it is a range, grab the segment texts
-            # and concatenate.
-            pm_stext = ""
-            if " - " in pm_sid:
-                [pm_sid_from, pm_sid_to] = pm_sid.split(" - ")
-                # Since the CSV data currently only has pm segment ranges of 2,
-                # we're just going to assume there are no segments in between
-                # the from and to segments.  We're not even going to write an
-                # assert (yet).
-                pm_stext = get_segment_text(pm_sid_from) + " " + get_segment_text(pm_sid_to)
+            [pm_sid, vb_sid] = line.strip().split(",",1)
+            check_line(pm_sid, vb_sid)
+
+def check_line(pm_sid, vb_sid):
+    global class_index
+    global rule_number
+
+    # Get the text for the pm entry.
+    pm_stext = get_translation_text(pm_sid)
+
+    # Check whether the second entry is a segment ID.  If it's not, it will
+    # happen to be the text of the pm file at time of creation, but that's not
+    # useful so don't depend on it.
+    vb_stext = "SKIP"
+    if "pli-tv-" in vb_sid:
+        # Get the text for the segments.
+        vb_stext = get_translation_text(vb_sid)
+    else:
+        # Skip checking the Recitation of blah segments.  Left them in the CSV
+        # data in case we later want to check it against the vb text.
+        if "ecitation" not in vb_sid:
+            vb_sid = "rule title, checking it's in order:"
+
+            # Check whether the rule title has the right number.
+            if bu_classes[class_index][0] in pm_stext and str(rule_number) in pm_stext:
+                vb_stext = "yay!"
             else:
-                pm_stext = get_segment_text(pm_sid)
+                vb_stext = f"UH OH!  Rule name is wonky.  Expected {bu_classes[class_index][0]} {str(rule_number)} in it."
 
-            # Check whether the second entry is a segment ID.  If it isn't we're
-            # checking whether the rule title has the right number.
+            # Update indices.
+            rule_number += 1
+            if rule_number > bu_classes[class_index][1]:
+                class_index += 1
+                rule_number = 1
 
-            # Get the text for the segments.
-            # Sometimes the entry in the csv file is a range of segments rather
-            # than a single segment ID.  If it is a range, grab the segment texts
-            # and concatenate.
+    okay = vb_stext in ["SKIP", "yay!"]
+    if not okay:
+        # Check if segment texts match!
+        okay = True
+        # I'm not convinced ndiff is helping us here.
+        for index, diffstr in enumerate(difflib.ndiff(pm_stext.strip('"'), vb_stext.strip('"'))):
+            if diffstr[0] == " ":
+                continue
+            elif diffstr[0] in ["-", "+"]:
+                if diffstr[-1] not in '‘“’” ':
+                    okay = False
+                    break
 
-            print(f"{pm_sid} ... {pm_stext}")
+    if VERBOSE or not okay:
+        print(f"{pm_sid: <26} {pm_stext}")
+        print(f"{vb_sid: <26} {vb_stext}")
+        print()
 
 # Run!
 compare(bu_pm_vb_segments_file)
