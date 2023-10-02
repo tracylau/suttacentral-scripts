@@ -8,6 +8,8 @@ import subprocess
 CWD = os.getcwd()
 VINAYA_PATH = "/Users/tracy/Development/bilara-data/translation/en/brahmali/vinaya"
 VERBOSE = False
+VERBOSE = True  # ohhh the really bad programming...
+# TODO bu pc 31 and 49 are borken
 
 bi_pm_file = f"{VINAYA_PATH}/pli-tv-bi-pm_translation-en-brahmali.json"
 bu_pm_file = f"{VINAYA_PATH}/pli-tv-bu-pm_translation-en-brahmali.json"
