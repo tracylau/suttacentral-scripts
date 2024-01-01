@@ -6,7 +6,7 @@ import subprocess
 
 ## Set up directories and filenames.
 CWD = os.getcwd()
-VINAYA_PATH = "/Users/tracy/Development/bilara-data/translation/en/brahmali/vinaya"
+VINAYA_PATH = "/home/nadi/Development/bilara-data/translation/en/brahmali/vinaya"
 VERBOSE = False
 VERBOSE = True  # ohhh the really bad programming...
 # TODO bu pc 31 and 49 are borken
